@@ -107,6 +107,7 @@ type AutoTrader struct {
 	lastBalanceSyncTime   time.Time          // 上次余额同步时间
 	database              interface{}        // 数据库引用（用于自动更新余额）
 	userID                string             // 用户ID
+	autoStart             bool               // 是否自动启动（从数据库 is_running 字段加载）
 }
 
 // NewAutoTrader 创建自动交易器
@@ -642,9 +643,9 @@ func (at *AutoTrader) buildTradingContext() (*decision.Context, error) {
 		}
 		updateTime := at.positionFirstSeenTime[posKey]
 
-		// 获取该持仓的历史最高收益率
+		// 获取该持仓的历史最高收益率（使用 symbol_side 作为 key，与 checkPositionDrawdown 一致）
 		at.peakPnLCacheMutex.RLock()
-		peakPnlPct := at.peakPnLCache[symbol]
+		peakPnlPct := at.peakPnLCache[posKey]
 		at.peakPnLCacheMutex.RUnlock()
 
 		positionInfos = append(positionInfos, decision.PositionInfo{
@@ -1240,6 +1241,16 @@ func (at *AutoTrader) GetSystemPromptTemplate() string {
 // GetDecisionLogger 获取决策日志记录器
 func (at *AutoTrader) GetDecisionLogger() *logger.DecisionLogger {
 	return at.decisionLogger
+}
+
+// SetAutoStart 设置是否自动启动
+func (at *AutoTrader) SetAutoStart(auto bool) {
+	at.autoStart = auto
+}
+
+// GetAutoStart 获取是否自动启动
+func (at *AutoTrader) GetAutoStart() bool {
+	return at.autoStart
 }
 
 // GetStatus 获取系统状态（用于API）

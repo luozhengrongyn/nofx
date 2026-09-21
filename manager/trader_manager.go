@@ -278,8 +278,9 @@ func (tm *TraderManager) addTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		}
 	}
 
+	at.SetAutoStart(traderCfg.IsRunning)
 	tm.traders[traderCfg.ID] = at
-	log.Printf("✓ Trader '%s' (%s + %s) 已加载到内存", traderCfg.Name, aiModelCfg.Provider, exchangeCfg.ID)
+	log.Printf("✓ Trader '%s' (%s + %s) 已加载到内存 (auto_start=%v)", traderCfg.Name, aiModelCfg.Provider, exchangeCfg.ID, traderCfg.IsRunning)
 	return nil
 }
 
@@ -439,6 +440,27 @@ func (tm *TraderManager) StartAll() {
 			}
 		}(id, t)
 	}
+}
+
+// StartAllRunning 启动所有标记为 auto_start=true 的交易员
+func (tm *TraderManager) StartAllRunning() int {
+	tm.mu.RLock()
+	defer tm.mu.RUnlock()
+
+	started := 0
+	for id, t := range tm.traders {
+		if !t.GetAutoStart() {
+			continue
+		}
+		go func(traderID string, at *trader.AutoTrader) {
+			log.Printf("▶️  自动启动 %s...", at.GetName())
+			if err := at.Run(); err != nil {
+				log.Printf("❌ %s 运行错误: %v", at.GetName(), err)
+			}
+		}(id, t)
+		started++
+	}
+	return started
 }
 
 // StopAll 停止所有trader
